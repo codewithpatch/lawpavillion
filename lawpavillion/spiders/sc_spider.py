@@ -71,13 +71,14 @@ class JudgmentSpiderSpider(scrapy.Spider):
         # resource
         uid = uuid.uuid4().hex[:5]
         name_abbreviation = self.get_name_abbrv(response)
-        slug = slugify(name_abbreviation) if name_abbreviation else ''
         name = response.css('h3.casetitle.red::text').get().replace('  ', ' ')
+        name = titlecase(name.lower())
+        slug = slugify(name_abbreviation) if name_abbreviation else slugify(name)
 
         item['id'] = uid
         item['url'] = 'https://api.firmtext.com/cases/{}/'.format(uid)
-        item['name'] = titlecase(name.lower())
-        item['name_abbreviation'] = name_abbreviation
+        item['name'] = name
+        item['name_abbreviation'] = name_abbreviation if name_abbreviation else name
         item['slug'] = slug
         item['suite_no'] = response.css('h3.casetitle::text').re_first('SC.+')
         decision_date = self.get_decision_date(response)
@@ -200,7 +201,7 @@ class JudgmentSpiderSpider(scrapy.Spider):
             citation_list.append({
                 'type': 'FTLR',
                 'name': 'Firmtext Law Reports',
-                'cite': re.search('(.+) \(\d{4}', cite).group(1) + " ({}) {}".format(decision_date['year'], uid)
+                'cite': re.search('(.+) \(\d{4}', cite).group(1) + " ({}) FTLR {}".format(decision_date['year'], uid)
             })
 
         return citation_list
