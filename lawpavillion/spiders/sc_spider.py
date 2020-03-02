@@ -1,8 +1,13 @@
 # -*- coding: utf-8 -*-
+import logging
 import re
 import uuid
+import posixpath
+from datetime import datetime
+from titlecase import titlecase
 
 import scrapy
+from slugify import slugify
 from inline_requests import inline_requests
 from urllib.parse import urljoin
 
@@ -11,7 +16,7 @@ from lawpavillion.items import LawpavillionItem
 
 class JudgmentSpiderSpider(scrapy.Spider):
     name = 'sc_spider'
-    CRAWL_PAGINATION = True
+    CRAWL_PAGINATION = False
     TEST_MODE = False
 
     def __init__(self, page_url='', url_file=None, *args, **kwargs):
@@ -64,57 +69,37 @@ class JudgmentSpiderSpider(scrapy.Spider):
         fj_response = yield scrapy.Request(full_judgement_url)
 
         # resource
-        item['id'] = uuid.uuid4().hex[:5]
-        item['url'] = response.url
-        item['name'] = response.css('h3.casetitle.red::text').get()
-        item['name_abbreviation'] = ''
-        item['slug'] = ''
-        item['decision_date'] = response.css('.date::text').re_first(', the (.+)')
+        uid = uuid.uuid4().hex[:5]
+        name_abbreviation = self.get_name_abbrv(response)
+        slug = slugify(name_abbreviation) if name_abbreviation else ''
+        name = response.css('h3.casetitle.red::text').get().replace('  ', ' ')
+
+        item['id'] = uid
+        item['url'] = 'https://api.firmtext.com/cases/{}/'.format(uid)
+        item['name'] = titlecase(name.lower())
+        item['name_abbreviation'] = name_abbreviation
+        item['slug'] = slug
         item['suite_no'] = response.css('h3.casetitle::text').re_first('SC.+')
+        decision_date = self.get_decision_date(response)
+        item['decision_date'] = decision_date
 
         # citations list
-        item['citations'] = self.get_citations(response)
+        item['citations'] = self.get_citations(response, decision_date, uid)
 
         # court
-        court_name_abbreviation = ''
-        court_url = ''
-        court_slug = ''
-        court_id = ''
-        court_name = response.css('h4::text').re_first('Supreme.+')
-        item['court'] = {
-            'name_abbreviation': court_name_abbreviation,
-            'url': court_url,
-            'slug': court_slug,
-            'id': court_id,
-            'name': court_name
-        }
+        court_details = self.get_court_details(response)
+        item['court'] = court_details
 
         # jurisdiction
-        jurisdiction_url = ''
-        jurisdiction_slug = ''
-        jurisdiction_whitelisted = ''
-        jurisdiction_id = ''
-        jurisdiction_name_long = response.css('h4::text').re_first('Supreme.+of(.+)')
-        jurisdiction_name = ''
-        item['jurisdiction'] = {
-            'url': jurisdiction_url,
-            'slug': jurisdiction_slug,
-            'whitelisted': jurisdiction_whitelisted,
-            'id': jurisdiction_id,
-            'name_long': jurisdiction_name_long,
-            'name': jurisdiction_name,
-        }
+        jurisdiction_details = self.get_jurisdiction_details()
+        item['jurisdiction'] = jurisdiction_details
 
         # frontend
-        frontend_full = ''
-        frontend_summary = ''
-        item['frontend'] = {
-            'full': frontend_full,
-            'summary': frontend_summary,
-        }
+        frontend = self.generate_frontend(court_details, jurisdiction_details, uid, slug)
+        item['frontend'] = frontend
 
         # casebody
-        ratio_recidendi = self.get_ratio_recidendi(fj_response)
+        ratio_decidendi = self.get_ratio_decidendi(fj_response)
         opinions = self.get_opinion(fj_response)
         judges = self.get_judges(response)
         appellants = self.get_names(response, 'Appellant')
@@ -123,7 +108,7 @@ class JudgmentSpiderSpider(scrapy.Spider):
         summary = response.css('summary::text').get()
 
         item['casebody'] = {
-            'ratio_recidendi': ratio_recidendi,
+            'ratio_decidendi': ratio_decidendi,
             'opinions': opinions,
             'judges': judges,
             'appellants': appellants,
@@ -133,6 +118,26 @@ class JudgmentSpiderSpider(scrapy.Spider):
         }
 
         yield item
+
+    def get_name_abbrv(self, response):
+        citation = response.css('.green+ p::text').re_first('.+')
+
+        if citation:
+            return re.search('(.+) \(\d{4}', citation).group(1)
+        else:
+            return None
+
+    def get_decision_date(self, response):
+        raw_date = response.css('.date::text').re_first(', the (.+)')
+        date_in_list = re.search('(\d+)\w+ day of (\w+), (\d{4})', raw_date).groups()
+        strdate = ' '.join(date_in_list)
+        oldformat = datetime.strptime(strdate, '%d %B %Y')
+
+        return {
+            'year': oldformat.strftime('%Y'),
+            'month': oldformat.strftime('%m'),
+            'date': oldformat.strftime('%d'),
+        }
 
     def get_judges(self, response):
         judges = []
@@ -168,14 +173,22 @@ class JudgmentSpiderSpider(scrapy.Spider):
 
         return name_list
 
-    def get_citations(self, response):
+    def get_citations(self, response, decision_date, uid):
         citation_list = []
         citation_raw_list = response.css('.green+ p::text')
 
         for citation in citation_raw_list:
-            type = citation.re_first('\d{4}\)[^A-Za-z]+(\w+)')
-            name = ''
+            type = citation.re_first('\d{4}\)[^A-Za-z]+(\w+\.?\w+?)')
             cite = citation.re_first('.+')
+            name = ''
+
+            if type == 'NWLR':
+                name = 'Nigerian Weekly Law Reports'
+            elif type == 'FTLR':
+                name = 'Firmtext Law Reports'
+            elif not cite:
+                logging.warning('No typed were parsed in getting the citations. Check get_citations method...')
+                return ''
 
             citation_list.append({
                 'type': type,
@@ -183,13 +196,20 @@ class JudgmentSpiderSpider(scrapy.Spider):
                 'cite': cite,
             })
 
+            # "${name_abbreviation} (${decision_date.year}) FTLR ${uuid}"
+            citation_list.append({
+                'type': 'FTLR',
+                'name': 'Firmtext Law Reports',
+                'cite': re.search('(.+) \(\d{4}', cite).group(1) + " ({}) {}".format(decision_date['year'], uid)
+            })
+
         return citation_list
 
-    def get_ratio_recidendi(self, response):
-        ratio_recidendi = []
-        ratio_recidendi_list = response.css('.blue .ratio')
+    def get_ratio_decidendi(self, response):
+        ratio_decidendi = []
+        ratio_decidendi_list = response.css('.blue .ratio')
 
-        for ratio in ratio_recidendi_list:
+        for ratio in ratio_decidendi_list:
             number = int(ratio.css('::text').re_first('\d+'))
             matter = ratio.css('b span.red::text').re_first('(.+) -')
             topic = ratio.css('b span.green::text').re_first('(.+):')
@@ -199,7 +219,7 @@ class JudgmentSpiderSpider(scrapy.Spider):
                 author = ratio.css('p.blue::text').re_first('Per (.+) \(')
             ref = ratio.css('p.blue::text').re_first('\((.+)\)')
 
-            ratio_recidendi.append({
+            ratio_decidendi.append({
                 'number': number,
                 'matter': matter,
                 'topic': topic,
@@ -208,7 +228,7 @@ class JudgmentSpiderSpider(scrapy.Spider):
                 'ref': ref,
             })
 
-        return ratio_recidendi
+        return ratio_decidendi
 
     def get_opinion(self, response):
         opinion = []
@@ -232,7 +252,6 @@ class JudgmentSpiderSpider(scrapy.Spider):
                 'author': name,
                 'text': text,
             })
-
         return opinion
 
     def get_attorneys(self, response):
@@ -261,3 +280,56 @@ class JudgmentSpiderSpider(scrapy.Spider):
             })
 
         return name_hash_list
+
+    def get_court_details(self, response):
+        court_name = response.css('h4::text').re_first('In The (.+)')
+        court_id = uuid.uuid4().hex[:5]
+
+        if 'Supreme' in court_name:
+            court_name_abbreviation = 'SCNG'
+            court_url = 'https://api.firmtext.com/courts/scng/'
+            court_slug = 'scng'
+        elif 'Appeal' in court_name:
+            court_name_abbreviation = 'ACNG'
+            court_url = 'https://api.firmtext.com/courts/apng/'
+            court_slug = 'apng'
+        else:
+            logging.WARNING("Court details isn't Supreme Court or Appeal Court. check get_court_details method")
+            return None
+
+        return {
+            'name_abbreviation': court_name_abbreviation,
+            'url': court_url,
+            'slug': court_slug,
+            'id': court_id,
+            'name': court_name
+        }
+
+    def get_jurisdiction_details(self):
+        url = 'https://api.firmtext.com/jurisdictions/ng/'
+        slug = 'ng'
+        whitelisted = 'false'
+        jurisdiction_id = 39
+        name_long = 'Nigeria'
+        name = 'NG'
+
+        return {
+            'url': url,
+            'slug': slug,
+            'whitelisted': whitelisted,
+            'id': jurisdiction_id,
+            'name_long': name_long,
+            'name': name,
+        }
+
+    def generate_frontend(self, court_details, jurisdiction_details, uid, slug):
+        # https://firmtext/cases/${jurisdiction.slug}/${court.slug}/${slug}-${uuid}/full
+        # https://firmtext/cases/${jurisdiction.slug}/${court.slug}/${slug}-${uuid}
+        base_url = 'https://firmtext/cases/'
+        jurisdiction_slug = jurisdiction_details['slug']
+        court_slug = court_details['slug']
+
+        return {
+            'full': posixpath.join(base_url, jurisdiction_slug, court_slug, slug, uid, 'full'),
+            'summary': posixpath.join(base_url, jurisdiction_slug, court_slug, slug, uid),
+        }
