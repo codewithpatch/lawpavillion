@@ -16,7 +16,7 @@ class LawpavillionItem(scrapy.Item):
     name_abbreviation = scrapy.Field()  # none yet
     slug = scrapy.Field()  # none yet
     decision_date = scrapy.Field()
-    suite_no = scrapy.Field()
+    suit_no = scrapy.Field()
 
     # citations list
     citations = scrapy.Field()
