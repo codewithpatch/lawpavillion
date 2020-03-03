@@ -76,11 +76,11 @@ class JudgmentSpiderSpider(scrapy.Spider):
         slug = slugify(name_abbreviation) if name_abbreviation else slugify(name)
 
         item['id'] = uid
-        item['url'] = 'https://api.firmtext.com/cases/{}/'.format(uid)
+        item['url'] = 'https://api.firmtext.com/cases/{}/'.format(uid) + '/'
         item['name'] = name
         item['name_abbreviation'] = name_abbreviation if name_abbreviation else name
         item['slug'] = slug
-        item['suite_no'] = response.css('h3.casetitle::text').re_first('SC.+')
+        item['suit_no'] = response.css('h3.casetitle::text').re_first('SC.+')
         decision_date = self.get_decision_date(response)
         item['decision_date'] = decision_date
 
@@ -331,6 +331,6 @@ class JudgmentSpiderSpider(scrapy.Spider):
         court_slug = court_details['slug']
 
         return {
-            'full': posixpath.join(base_url, jurisdiction_slug, court_slug, slug, uid, 'full'),
-            'summary': posixpath.join(base_url, jurisdiction_slug, court_slug, slug, uid),
+            'full': posixpath.join(base_url, jurisdiction_slug, court_slug, slug, uid, 'full') + '/',
+            'summary': posixpath.join(base_url, jurisdiction_slug, court_slug, slug, uid) + '/',
         }
