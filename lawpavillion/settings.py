@@ -15,10 +15,12 @@ USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 ' \
              '(KHTML, like Gecko) Chrome/61.0.3163.100 Safari/537.36 '
 
 ITEM_PIPELINES = {
-    # 'lawpavillion.pipelines.LawpavillionPipeline': 300,
-    'lawpavillion.pipelines.TestPipeline': 300,
+    'lawpavillion.pipelines.LawpavillionPipeline': 300,
+    # 'lawpavillion.pipelines.TestPipeline': 300,
 }
 
+# dele@authoritywit.com
+# Griffin003
 USERNAME = urllib.parse.quote_plus('chester')
 PASSWORD = urllib.parse.quote_plus('aFLUKxoBMau9MNX7')
 
