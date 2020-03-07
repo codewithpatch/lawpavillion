@@ -6,9 +6,16 @@
 # https://docs.scrapy.org/en/latest/topics/items.html
 
 import scrapy
+from scrapy.utils.project import get_project_settings
+
+settings = get_project_settings()
+TEST_MODE = settings.get('TEST_MODE')
 
 
 class LawpavillionItem(scrapy.Item):
+    if TEST_MODE:
+        source = scrapy.Field()
+
     # resource
     id = scrapy.Field()  # none yet
     url = scrapy.Field()
@@ -33,5 +40,9 @@ class LawpavillionItem(scrapy.Item):
     # casebody
     casebody = scrapy.Field()
 
+
+class RuleofCourtItem(scrapy.Item):
+    if TEST_MODE:
+        source = scrapy.Field()
 
 
