@@ -16,7 +16,7 @@ from lawpavillion.items import LawpavillionItem
 
 class JudgmentSpiderSpider(scrapy.Spider):
     name = 'sc_spider'
-    CRAWL_PAGINATION = False
+    CRAWL_PAGINATION = True
     TEST_MODE = False
 
     def __init__(self, page_url='', url_file=None, *args, **kwargs):
@@ -76,7 +76,7 @@ class JudgmentSpiderSpider(scrapy.Spider):
         slug = slugify(name_abbreviation) if name_abbreviation else slugify(name)
 
         item['id'] = uid
-        item['url'] = 'https://api.firmtext.com/cases/{}/'.format(uid) + '/'
+        item['url'] = 'https://api.firmtext.com/cases/{}/'.format(uid)
         item['name'] = name
         item['name_abbreviation'] = name_abbreviation if name_abbreviation else name
         item['slug'] = slug
@@ -122,6 +122,8 @@ class JudgmentSpiderSpider(scrapy.Spider):
 
     def get_name_abbrv(self, response):
         citation = response.css('.green+ p::text').re_first('.+')
+        if citation == '; ; ':
+            return None
 
         if citation:
             return re.search('(.+) \(\d{4}', citation).group(1)
@@ -181,6 +183,8 @@ class JudgmentSpiderSpider(scrapy.Spider):
         for citation in citation_raw_list:
             type = citation.re_first('\d{4}\)[^A-Za-z]+(\w+\.?\w+?)')
             cite = citation.re_first('.+')
+            if cite == '; ; ':
+                cite = ''
             name = ''
 
             if type == 'NWLR':
