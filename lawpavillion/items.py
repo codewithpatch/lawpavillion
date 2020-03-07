@@ -46,3 +46,8 @@ class RuleofCourtItem(scrapy.Item):
         source = scrapy.Field()
 
 
+class LawofFederationItem(scrapy.Item):
+    if TEST_MODE:
+        source = scrapy.Field()
+
+
