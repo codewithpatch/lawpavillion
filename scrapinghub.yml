@@ -1,4 +1,6 @@
-project: 433362
+projects:
+  default: 433362
+  prod: 434331
 requirements:
   file: requirements.txt
 stacks:
