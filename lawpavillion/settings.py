@@ -40,5 +40,6 @@ MONGO_DATABASE = 'law_pavillion'
 
 CRAWL_PAGINATION = False
 GET_ONE_URL = True
+CRAWL_ONE_SECTION = True
 CRAWL_PAGE_URL = False
 TEST_MODE = True
