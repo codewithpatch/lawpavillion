@@ -56,8 +56,9 @@ class JudgmentSpiderSpider(scrapy.Spider):
         for url in judgement_url_list:
             yield scrapy.Request(url, callback=self.crawl_initial_page)
 
-        next_page = urljoin(self.base_url, response.xpath('//li[@class="next"]//@href').get())
+        next_page = response.xpath('//li[@class="next"]//@href').get()
         if next_page and self.CRAWL_PAGINATION:
+            next_page = urljoin(self.base_url, next_page)
             yield scrapy.Request(url=next_page, callback=self.parse_judgement_url)
 
     @inline_requests
