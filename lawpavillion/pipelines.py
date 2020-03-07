@@ -19,6 +19,10 @@ class LawpavillionPipeline(object):
             self.collection_name = 'sc_judgment'
         elif spider_name == 'ca_spider':
             self.collection_name = 'ca_judgment'
+        elif spider_name == 'ruleofcourt_spider':
+            self.collection_name = 'rules_of_court'
+        elif spider_name == 'lfn_spider':
+            self.collection_name = 'laws_of_the_federation'
 
     @classmethod
     def from_crawler(cls, crawler):
