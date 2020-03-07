@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import urllib.parse
+import socket
 
 BOT_NAME = 'lawpavillion'
 
@@ -21,13 +22,23 @@ ITEM_PIPELINES = {
 
 # dele@authoritywit.com
 # Griffin003
-USERNAME = urllib.parse.quote_plus('chester')
-PASSWORD = urllib.parse.quote_plus('aFLUKxoBMau9MNX7')
+if socket.gethostname() == 'BillionairesAir':
+    USERNAME = urllib.parse.quote_plus('chester')
+    PASSWORD = urllib.parse.quote_plus('C4Kz9D1iYxSIVn8g')
+    MONGO_URI = 'mongodb+srv://{}:{}@cluster0-jz9uu.mongodb.net/test?retryWrites=true&w=majority'.format(USERNAME,
+                                                                                                         PASSWORD)
+else:
+    # mongodb://[username:password@]host1[:port1]
+    USERNAME = urllib.parse.quote_plus('firmbird')
+    PASSWORD = urllib.parse.quote_plus('Qr2QCZeK')
+    DATABASE = 'firmbird'
+    MONGO_URI = 'mongodb://{}:{}@209.182.235.140:27017/{}?retryWrites=true&w=majority'.format(USERNAME,
+                                                                                              PASSWORD,
+                                                                                              DATABASE)
 
-MONGO_URI = 'mongodb+srv://{}:{}@cluster0-jz9uu.mongodb.net/test?retryWrites=true&w=majority'.format(USERNAME, PASSWORD)
 MONGO_DATABASE = 'law_pavillion'
-MONGODB_COLLECTION = 'sc_judgment'
 
-# LOG_ENABLED = True
-# LOG_FILE = 'scrapy.log'
-# LOG_ENCODING = True
+CRAWL_PAGINATION = False
+GET_ONE_URL = True
+CRAWL_PAGE_URL = False
+TEST_MODE = True
