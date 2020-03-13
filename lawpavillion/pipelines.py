@@ -33,7 +33,7 @@ class LawpavillionPipeline(object):
         )
 
     def open_spider(self, spider):
-        self.client = pymongo.MongoClient(self.mongo_uri, authSource='admin')
+        self.client = pymongo.MongoClient(self.mongo_uri, authSource='firmbird', serverSelectionTimeoutMS=50000)  # change when test mode
         pymongo.MongoClient()
         self.db = self.client[self.mongo_db]
 
