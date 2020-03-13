@@ -16,13 +16,23 @@ from lawpavillion.items import LawpavillionItem
 
 class JudgmentSpiderSpider(scrapy.Spider):
     name = 'sc_spider'
-    CRAWL_PAGINATION = True
-    TEST_MODE = False
+    CRAWL_PAGINATION = True     # True if prod
+    GET_ONE_URL = False         # False if prod
+    CRAWL_PAGE_URL = False      # False if prod
+    TEST_MODE = False           # False if prod
 
-    def __init__(self, page_url='', url_file=None, *args, **kwargs):
+    def __init__(
+            self,
+            page_url='',
+            url_file=None,
+            *args,
+            **kwargs
+    ):
+
         self.base_url = 'https://lawpavilionplus.com/'
         self.login_url = 'https://lawpavilionplus.com/?fresh=1'
         self.start_urls = [self.login_url]
+        self.page_url = page_url
 
         if not page_url and url_file is None:
             TypeError('No page URL or URL file passed.')
@@ -30,9 +40,9 @@ class JudgmentSpiderSpider(scrapy.Spider):
         if url_file is not None:
             with open(url_file, 'r') as f:
                 self.start_urls = f.readlines()
-        if page_url:
-            # Replaces the list of URLs if url_file is also provided
-            self.start_urls = [page_url]
+        # if page_url:
+        #     # Replaces the list of URLs if url_file is also provided
+        #     self.start_urls = [page_url]
 
         super().__init__(*args, **kwargs)
 
@@ -50,8 +60,10 @@ class JudgmentSpiderSpider(scrapy.Spider):
     def parse_judgement_url(self, response):
         relative_url_list = response.xpath('//li[@class="item-black clearfix"]//@href').getall()
         judgement_url_list = list(map(lambda url: urljoin(self.base_url, url), relative_url_list))
-        if self.TEST_MODE:
+        if self.GET_ONE_URL:
             judgement_url_list = [judgement_url_list[0]]
+        if self.CRAWL_PAGE_URL:
+            judgement_url_list = [self.page_url]
 
         for url in judgement_url_list:
             yield scrapy.Request(url, callback=self.crawl_initial_page)
@@ -72,6 +84,7 @@ class JudgmentSpiderSpider(scrapy.Spider):
         # resource
         uid = uuid.uuid4().hex[:5]
         name_abbreviation = self.get_name_abbrv(response)
+        name_abbreviation = name_abbreviation.strip() if name_abbreviation else None
         name = response.css('h3.casetitle.red::text').get().replace('  ', ' ')
         name = titlecase(name.lower())
         slug = slugify(name_abbreviation) if name_abbreviation else slugify(name)
@@ -127,7 +140,20 @@ class JudgmentSpiderSpider(scrapy.Spider):
             return None
 
         if citation:
-            return re.search('(.+) \(\d{4}', citation).group(1)
+            try:
+                return_string = re.search('(.+)\s\(\d{4}', citation).group(1)
+                return return_string
+            except AttributeError:
+                try:
+                    return_string = re.search('(.+)\s?\(\d{4}', citation).group(1)
+                    return return_string
+                except AttributeError:
+                    try:
+                        return_string = re.search('(.+)\s?\[\d{4}', citation).group(1)
+                        return return_string
+                    except AttributeError:
+                        return None
+
         else:
             return None
 
@@ -193,7 +219,7 @@ class JudgmentSpiderSpider(scrapy.Spider):
             elif type == 'FTLR':
                 name = 'Firmtext Law Reports'
             elif not cite:
-                logging.warning('No typed were parsed in getting the citations. Check get_citations method...')
+                # logging.warning('No typed were parsed in getting the citations. Check get_citations method...')
                 return ''
 
             citation_list.append({

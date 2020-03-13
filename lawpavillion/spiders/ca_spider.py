@@ -94,6 +94,7 @@ class AcSpiderSpider(scrapy.Spider):
         # resource
         uid = uuid.uuid4().hex[:5]
         name_abbreviation = self.get_name_abbrv(response)
+        name_abbreviation = name_abbreviation.strip() if name_abbreviation else None
         name = response.css('h3.casetitle.red::text').get().replace('  ', ' ')
         name = titlecase(name.lower())
         slug = slugify(name_abbreviation) if name_abbreviation else slugify(name)
@@ -152,7 +153,19 @@ class AcSpiderSpider(scrapy.Spider):
             return None
 
         if citation:
-            return re.search('(.+) \(\d{4}', citation).group(1)
+            try:
+                return_string = re.search('(.+)\s\(\d{4}', citation).group(1)
+                return return_string
+            except AttributeError:
+                try:
+                    return_string = re.search('(.+)\s?\(\d{4}', citation).group(1)
+                    return return_string
+                except AttributeError:
+                    try:
+                        return_string = re.search('(.+)\s?\[\d{4}', citation).group(1)
+                        return return_string
+                    except AttributeError:
+                        return None
         else:
             return None
 
