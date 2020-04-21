@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import logging
 import re
+import socket
 import uuid
 import posixpath
 from datetime import datetime
@@ -23,7 +24,8 @@ class JudgmentSpiderSpider(scrapy.Spider):
 
     def __init__(
             self,
-            page_url='',
+            page_url='https://lawpavilionplus.com/summary/judgments/?suitno=SC.32%2F1994&from'
+                     '=OPJ6MhzKBqrbgLdDrWvaYoghN%2B2HQ5abLqooqBwT1fg%3D',
             url_file=None,
             *args,
             **kwargs
@@ -47,6 +49,7 @@ class JudgmentSpiderSpider(scrapy.Spider):
         super().__init__(*args, **kwargs)
 
     def parse(self, response):
+        logging.info('THIS IS YOUR SOCKETHOSTNAME: {}'.format(socket.gethostname()))
         return scrapy.FormRequest.from_response(
             response,
             formdata={'LoginForm[username]': 'delomos@gmail.com', 'LoginForm[password]': 'bamidele003'},
@@ -83,6 +86,7 @@ class JudgmentSpiderSpider(scrapy.Spider):
 
         # resource
         uid = uuid.uuid4().hex[:5]
+        cite = self.get_name_abbrv(response)
         name_abbreviation = self.get_name_abbrv(response)
         name_abbreviation = name_abbreviation.strip() if name_abbreviation else None
         name = response.css('h3.casetitle.red::text').get().replace('  ', ' ')
@@ -99,7 +103,7 @@ class JudgmentSpiderSpider(scrapy.Spider):
         item['decision_date'] = decision_date
 
         # citations list
-        item['citations'] = self.get_citations(response, decision_date, uid)
+        item['citations'] = self.get_citations(response, cite, decision_date, uid)
 
         # court
         court_details = self.get_court_details(response)
@@ -159,7 +163,11 @@ class JudgmentSpiderSpider(scrapy.Spider):
 
     def get_decision_date(self, response):
         raw_date = response.css('.date::text').re_first(', the (.+)')
-        date_in_list = re.search('(\d+)\w+ day of (\w+), (\d{4})', raw_date).groups()
+        try:
+            date_in_list = re.search('(\d+)\w+ day of (\w+), (\d{4})', raw_date).groups()
+        except:
+            return ''
+
         strdate = ' '.join(date_in_list)
         oldformat = datetime.strptime(strdate, '%d %B %Y')
 
@@ -203,13 +211,13 @@ class JudgmentSpiderSpider(scrapy.Spider):
 
         return name_list
 
-    def get_citations(self, response, decision_date, uid):
+    def get_citations(self, response, cite, decision_date, uid):
         citation_list = []
         citation_raw_list = response.css('.green+ p::text')
 
         for citation in citation_raw_list:
             type = citation.re_first('\d{4}\)[^A-Za-z]+(\w+\.?\w+?)')
-            cite = citation.re_first('.+')
+            full_citation = citation.re_first('.+')
             if cite == '; ; ':
                 cite = ''
             name = ''
@@ -225,14 +233,17 @@ class JudgmentSpiderSpider(scrapy.Spider):
             citation_list.append({
                 'type': type,
                 'name': name,
-                'cite': cite,
+                'cite': full_citation,
             })
+
+            if not cite:
+                break
 
             # "${name_abbreviation} (${decision_date.year}) FTLR ${uuid}"
             citation_list.append({
                 'type': 'FTLR',
                 'name': 'Firmtext Law Reports',
-                'cite': re.search('(.+) \(\d{4}', cite).group(1) + " ({}) FTLR {}".format(decision_date['year'], uid)
+                'cite': cite + " ({}) FTLR {}".format(decision_date['year'], uid)
             })
 
         return citation_list

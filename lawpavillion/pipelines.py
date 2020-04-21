@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import socket
 
 import pymongo
 from scrapy.utils.project import get_project_settings
@@ -9,6 +10,11 @@ class LawpavillionPipeline(object):
     settings = get_project_settings()
     CRAWL_PAGINATION = settings.get('CRAWL_PAGINATION')
     TEST_MODE = settings.get('TEST_MODE')
+
+    if socket.gethostname() == 'BillionairesAir':
+        authSource = 'admin'  # dev
+    else:
+        authSource = 'firmbird'  # prod
 
     def __init__(self, mongo_uri, mongo_db, spider_name):
         self.mongo_uri = mongo_uri
@@ -33,7 +39,12 @@ class LawpavillionPipeline(object):
         )
 
     def open_spider(self, spider):
-        self.client = pymongo.MongoClient(self.mongo_uri, authSource='firmbird', serverSelectionTimeoutMS=50000)  # change when test mode
+        self.client = pymongo.MongoClient(
+            self.mongo_uri,
+            authSource='firmbird',
+            socketTimeoutMS=60000,
+            serverSelectionTimeoutMS=60000,
+        )  # change when test mode
         pymongo.MongoClient()
         self.db = self.client[self.mongo_db]
 
