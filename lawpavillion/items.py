@@ -16,12 +16,12 @@ class LawpavillionItem(scrapy.Item):
     if TEST_MODE:
         source = scrapy.Field()
 
-    # resource
-    id = scrapy.Field()  # none yet
+    # case
+    id = scrapy.Field()
     url = scrapy.Field()
     name = scrapy.Field()
-    name_abbreviation = scrapy.Field()  # none yet
-    slug = scrapy.Field()  # none yet
+    name_abbreviation = scrapy.Field()
+    slug = scrapy.Field()
     decision_date = scrapy.Field()
     suit_no = scrapy.Field()
 
@@ -29,16 +29,19 @@ class LawpavillionItem(scrapy.Item):
     citations = scrapy.Field()
 
     # court
-    court = scrapy.Field()  # none yet
+    court = scrapy.Field()
 
     # jurisdiction
-    jurisdiction = scrapy.Field()  # none yet
+    jurisdiction = scrapy.Field()
 
     # frontend
     frontend = scrapy.Field()
 
     # casebody
     casebody = scrapy.Field()
+
+    # attoney
+    attorneys = scrapy.Field()
 
 
 class RuleofCourtItem(scrapy.Item):
@@ -49,5 +52,3 @@ class RuleofCourtItem(scrapy.Item):
 class LawofFederationItem(scrapy.Item):
     if TEST_MODE:
         source = scrapy.Field()
-
-
