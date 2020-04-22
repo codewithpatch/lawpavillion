@@ -136,6 +136,11 @@ class JudgmentSpiderSpider(scrapy.Spider):
             'summary': summary,
         }
 
+        appellant_attorney = attorneys[0]['appellant']
+        respondent_attoeney = attorneys[1]['respondent']
+
+        item['attorneys'] = self.consolidate_attorney_names(appellant_attorney, respondent_attoeney)
+
         yield item
 
     def get_name_abbrv(self, response):
@@ -376,3 +381,12 @@ class JudgmentSpiderSpider(scrapy.Spider):
             'full': posixpath.join(base_url, jurisdiction_slug, court_slug, slug, uid, 'full') + '/',
             'summary': posixpath.join(base_url, jurisdiction_slug, court_slug, slug, uid) + '/',
         }
+
+    def consolidate_attorney_names(self, appellant_attorney, respondent_attoeney):
+        attorneys = []
+        for key, name in appellant_attorney:
+            attorneys.append(name)
+        for key, name in respondent_attoeney:
+            attorneys.append(name)
+
+        return attorneys
